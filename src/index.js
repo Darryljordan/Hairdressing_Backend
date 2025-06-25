@@ -1,4 +1,5 @@
 require('dotenv').config();
+require('./db/pool'); // Ensures the connection is established
 const express = require('express');
 const cors = require('cors');
 const bookingsRouter = require('./routes/bookings');
