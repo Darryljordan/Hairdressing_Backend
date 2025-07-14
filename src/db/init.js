@@ -11,14 +11,32 @@ const pool = new Pool({
   port: process.env.PGPORT,
 });
 
+// Read and split SQL statements
 const sql = fs.readFileSync(path.join(__dirname, 'init.sql')).toString();
+const statements = sql
+  .split(';')
+  .map(stmt => stmt.trim())
+  .filter(stmt => stmt.length > 0);
 
-pool.query(sql)
-  .then(() => {
-    console.log('Bookings table created (if not exists)');
+async function runMigrations() {
+  try {
+    for (const stmt of statements) {
+      if (stmt.toLowerCase().includes('create table') && stmt.includes('bookings')) {
+        await pool.query(stmt);
+        console.log('Bookings table created (if not exists)');
+      } else if (stmt.toLowerCase().includes('create table') && stmt.includes('workers')) {
+        await pool.query(stmt);
+        console.log('Workers table created (if not exists)');
+      } else {
+        await pool.query(stmt);
+        console.log('Executed statement:', stmt.slice(0, 40) + '...');
+      }
+    }
+  } catch (err) {
+    console.error('Error creating tables:', err);
+  } finally {
     pool.end();
-  })
-  .catch((err) => {
-    console.error('Error creating table:', err);
-    pool.end();
-  });
+  }
+}
+
+runMigrations();

@@ -1,6 +1,9 @@
 const express = require('express');
 const pool = require('../db/pool');
 const router = express.Router();
+const { authenticateWorker } = require('../middleware/auth');
+const { softDeleteBooking, findBookingById } = require('../db/booking');
+const { sendMail } = require('../utils/email');
 
 // Create a new booking
 router.post('/', async (req, res) => {
@@ -29,6 +32,16 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Get All Bookings for a Worker
+router.get('/worker', authenticateWorker, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM bookings ORDER BY time'); // or whatever your sort is
+    res.json({ bookings: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error.' });
+  }
+});
+
 // Get a single booking by ID
 router.get('/:id', async (req, res) => {
   try {
@@ -38,6 +51,25 @@ router.get('/:id', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// Delete a Booking (by Worker) and Notify Booker
+router.delete('/:id', authenticateWorker, async (req, res) => {
+  const bookingId = req.params.id;
+  const booking = await findBookingById(bookingId);
+  if (!booking) {
+    return res.status(403).json({ error: 'Not authorized to delete this booking.' });
+  }
+  await softDeleteBooking(bookingId);
+
+  // Notify booker
+  await sendMail({
+    to: booking.email, // assuming booking.email is the booker's email
+    subject: 'Your booking has been canceled',
+    html: `<p>Dear ${booking.name},<br>Your booking on ${booking.time} has been canceled by the worker. Please contact the salon if you have questions.</p>`
+  });
+
+  res.json({ message: 'Booking deleted and booker notified.' });
 });
 
 // Delete a booking by ID
