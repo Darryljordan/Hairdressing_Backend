@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS workers (
 
 ALTER TABLE bookings ADD COLUMN state VARCHAR(20) DEFAULT 'valid';
 
+ALTER TABLE bookings ADD COLUMN cancel_token VARCHAR(255);
+
 ALTER TABLE workers
   ADD COLUMN is_validated BOOLEAN DEFAULT FALSE,
   ADD COLUMN validation_token VARCHAR(255);
